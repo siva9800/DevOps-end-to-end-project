@@ -12,17 +12,15 @@ on:
         description: "Environment to deploy"
         required: true
         type: choice
-        options: [staging, prod]
+        options: [dev, staging, prod]
 
 jobs:
-  deploy-dev:
-    name: Deploy Dev
-    if: github.event_name == 'push'
+  # ──────────────────────────────────────────────
+  # fmt + validate — fast checks, no AWS needed
+  # ──────────────────────────────────────────────
+  validate:
+    name: Validate
     runs-on: [self-hosted, linux, x64]
-
-    env:
-      TF_VAR_github_runner_url: ${{ secrets.GH_RUNNER_URL }}
-      TF_VAR_github_runner_token: ${{ secrets.GH_RUNNER_TOKEN }}
 
     steps:
       - name: Checkout
@@ -33,31 +31,39 @@ jobs:
         with:
           terraform_version: "1.11.1"
 
-      - name: Get AWS Account ID
-        id: account
-        run: echo "id=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_OUTPUT
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive snappaste-infra/terraform/
+        # Fails if any .tf file has wrong formatting
+        # Fix locally with: terraform fmt -recursive
 
-      - name: Terraform Init
+      - name: Terraform Validate (dev)
         working-directory: snappaste-infra/terraform/environments/dev
         run: |
-          terraform init \
-            -backend-config="bucket=snappaste-terraform-state-${{ steps.account.outputs.id }}"
+          terraform init -backend=false
+          terraform validate
 
-      - name: Terraform Plan
-        working-directory: snappaste-infra/terraform/environments/dev
-        run: terraform plan -out=tfplan
+      - name: Terraform Validate (staging)
+        working-directory: snappaste-infra/terraform/environments/staging
+        run: |
+          terraform init -backend=false
+          terraform validate
 
-      - name: Terraform Apply
-        working-directory: snappaste-infra/terraform/environments/dev
-        run: terraform apply -auto-approve tfplan
+      - name: Terraform Validate (prod)
+        working-directory: snappaste-infra/terraform/environments/prod
+        run: |
+          terraform init -backend=false
+          terraform validate
 
-  deploy-manual:
-    name: Deploy ${{ github.event.inputs.environment }}
-    if: github.event_name == 'workflow_dispatch'
+  # ──────────────────────────────────────────────
+  # Plan — shows what will change
+  # ──────────────────────────────────────────────
+  plan:
+    name: Plan (${{ github.event.inputs.environment || 'dev' }})
     runs-on: [self-hosted, linux, x64]
+    needs: validate
 
     env:
-      TF_ENV: ${{ github.event.inputs.environment }}
+      TF_ENV: ${{ github.event.inputs.environment || 'dev' }}
       TF_VAR_github_runner_url: ${{ secrets.GH_RUNNER_URL }}
       TF_VAR_github_runner_token: ${{ secrets.GH_RUNNER_TOKEN }}
 
@@ -82,7 +88,65 @@ jobs:
 
       - name: Terraform Plan
         working-directory: snappaste-infra/terraform/environments/${{ env.TF_ENV }}
-        run: terraform plan -out=tfplan
+        run: terraform plan -no-color -out=tfplan 2>&1 | tee plan_output.txt
+
+      - name: Show Plan Summary
+        working-directory: snappaste-infra/terraform/environments/${{ env.TF_ENV }}
+        run: |
+          echo "=========================================="
+          echo "  PLAN SUMMARY — ${{ env.TF_ENV }}"
+          echo "=========================================="
+          grep -E "^Plan:|No changes|must be replaced" plan_output.txt || true
+
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ env.TF_ENV }}
+          path: snappaste-infra/terraform/environments/${{ env.TF_ENV }}/tfplan
+          retention-days: 1
+
+  # ──────────────────────────────────────────────
+  # Approve + Apply
+  # Gate: GitHub Environment requires manual approval
+  # Go to Actions → running workflow → Review deployments → Approve
+  # ──────────────────────────────────────────────
+  apply:
+    name: Apply (${{ github.event.inputs.environment || 'dev' }})
+    runs-on: [self-hosted, linux, x64]
+    needs: plan
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    # ↑ This line is the gate — set required reviewers in
+    #   GitHub Settings → Environments → dev/staging/prod
+
+    env:
+      TF_ENV: ${{ github.event.inputs.environment || 'dev' }}
+      TF_VAR_github_runner_url: ${{ secrets.GH_RUNNER_URL }}
+      TF_VAR_github_runner_token: ${{ secrets.GH_RUNNER_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.1"
+
+      - name: Get AWS Account ID
+        id: account
+        run: echo "id=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_OUTPUT
+
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ env.TF_ENV }}
+          path: snappaste-infra/terraform/environments/${{ env.TF_ENV }}
+
+      - name: Terraform Init
+        working-directory: snappaste-infra/terraform/environments/${{ env.TF_ENV }}
+        run: |
+          terraform init \
+            -backend-config="bucket=snappaste-terraform-state-${{ steps.account.outputs.id }}"
 
       - name: Terraform Apply
         working-directory: snappaste-infra/terraform/environments/${{ env.TF_ENV }}
