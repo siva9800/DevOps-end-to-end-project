@@ -53,3 +53,7 @@ variable "common_tags" {
   type        = map(string)
   default     = {}
 }
+variable "bastion_security_group_id" {
+  description = "Bastion security group ID — for EKS API access"
+  type        = string
+}

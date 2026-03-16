@@ -1,33 +1,23 @@
 # ──────────────────────────────────────────────
-# Security Group for GitHub Actions Self-Hosted Runner
+# Security Group — GitHub Actions Runner (SSM only)
 # ──────────────────────────────────────────────
 resource "aws_security_group" "runner" {
   name_prefix = "${var.project_name}-${var.environment}-gh-runner-"
-  description = "Security group for GitHub Actions self-hosted runner"
+  description = "Security group for GitHub Actions self-hosted runner - SSM only"
   vpc_id      = var.vpc_id
 
-  # Outbound — runner needs internet to pull repos, images, talk to GitHub API
+  # No ingress — SSM only, no SSH
+
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-    description = "Allow all outbound (GitHub API, ECR, Docker Hub)"
-  }
-
-  # SSH access from bastion only
-  ingress {
-    from_port       = 22
-    to_port         = 22
-    protocol        = "tcp"
-    security_groups = var.bastion_security_group_id != null ? [var.bastion_security_group_id] : []
-    description     = "SSH from bastion host only"
+    description = "Allow all outbound - GitHub API, ECR, Docker Hub"
   }
 
   tags = merge(var.common_tags, {
-    Name        = "${var.project_name}-${var.environment}-gh-runner-sg"
-    Environment = var.environment
-    ManagedBy   = "terraform"
+    Name = "${var.project_name}-${var.environment}-gh-runner-sg"
   })
 
   lifecycle {
@@ -36,28 +26,24 @@ resource "aws_security_group" "runner" {
 }
 
 # ──────────────────────────────────────────────
-# IAM Role for the Runner EC2
+# IAM Role — Runner EC2
 # ──────────────────────────────────────────────
 resource "aws_iam_role" "runner" {
   name = "${var.project_name}-${var.environment}-gh-runner-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ec2.amazonaws.com"
-        }
-      }
-    ]
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+    }]
   })
 
   tags = var.common_tags
 }
 
-# ECR access — runner needs to push/pull images
+# ECR access — scoped to project repos only
 resource "aws_iam_role_policy" "ecr_access" {
   name = "${var.project_name}-${var.environment}-gh-runner-ecr"
   role = aws_iam_role.runner.id
@@ -66,9 +52,13 @@ resource "aws_iam_role_policy" "ecr_access" {
     Version = "2012-10-17"
     Statement = [
       {
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"   # GetAuthorizationToken must be *
+      },
+      {
         Effect = "Allow"
         Action = [
-          "ecr:GetAuthorizationToken",
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
@@ -77,33 +67,45 @@ resource "aws_iam_role_policy" "ecr_access" {
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload"
         ]
-        Resource = "*"
+        Resource = [
+          "arn:aws:ecr:us-east-1:884337374668:repository/notes-app-backend",
+          "arn:aws:ecr:us-east-1:884337374668:repository/notes-app-frontend"
+        ]
       }
     ]
   })
 }
 
-# EKS access — runner needs to deploy via kubectl/helm
+# EKS access
 resource "aws_iam_role_policy" "eks_access" {
   name = "${var.project_name}-${var.environment}-gh-runner-eks"
   role = aws_iam_role.runner.id
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "eks:DescribeCluster",
-          "eks:ListClusters"
-        ]
-        Resource = "*"
-      }
-    ]
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["eks:DescribeCluster", "eks:ListClusters"]
+      Resource = "*"
+    }]
   })
 }
 
-# SSM access — for Session Manager (no SSH key needed)
+# SSM access — runner token fetch + session manager
+resource "aws_iam_role_policy" "ssm_access" {
+  name = "${var.project_name}-${var.environment}-gh-runner-ssm"
+  role = aws_iam_role.runner.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = ["ssm:GetParameter"]
+      Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/${var.project_name}/${var.environment}/*"
+    }]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "ssm" {
   role       = aws_iam_role.runner.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
@@ -115,6 +117,22 @@ resource "aws_iam_instance_profile" "runner" {
 }
 
 # ──────────────────────────────────────────────
+# SSM Parameter — GitHub Runner Token
+# ──────────────────────────────────────────────
+resource "aws_ssm_parameter" "runner_token" {
+  name        = "/${var.project_name}/${var.environment}/github-runner-token"
+  description = "GitHub Actions runner registration token"
+  type        = "SecureString"
+  value       = var.github_runner_token
+
+  lifecycle {
+    ignore_changes = [value]  # token rotates externally
+  }
+
+  tags = var.common_tags
+}
+
+# ──────────────────────────────────────────────
 # EC2 Instance — Self-Hosted GitHub Actions Runner
 # ──────────────────────────────────────────────
 resource "aws_instance" "runner" {
@@ -123,7 +141,8 @@ resource "aws_instance" "runner" {
   subnet_id              = var.subnet_id
   vpc_security_group_ids = [aws_security_group.runner.id]
   iam_instance_profile   = aws_iam_instance_profile.runner.name
-  key_name               = var.key_name
+
+  # No key_name — SSM only
 
   root_block_device {
     volume_size           = var.root_volume_size
@@ -132,25 +151,28 @@ resource "aws_instance" "runner" {
     delete_on_termination = true
   }
 
-  user_data = base64encode(templatefile("${path.module}/user-data.sh", {
-    github_runner_url   = var.github_runner_url
-    github_runner_token = var.github_runner_token
-    runner_name         = "${var.project_name}-${var.environment}-runner"
-    runner_labels       = "${var.environment},self-hosted,linux,x64"
+  metadata_options {
+    http_tokens   = "required"  # IMDSv2 enforced
+    http_endpoint = "enabled"
+  }
+
+  user_data_base64 = base64encode(templatefile("${path.module}/user-data.sh", {
+    github_runner_url = var.github_runner_url
+    runner_name       = "${var.project_name}-runner"
+    runner_labels     = "self-hosted,linux,x64"
+    ssm_token_path    = aws_ssm_parameter.runner_token.name
+    aws_region        = var.aws_region
   }))
 
   tags = merge(var.common_tags, {
-    Name        = "${var.project_name}-${var.environment}-gh-runner"
-    Environment = var.environment
-    ManagedBy   = "terraform"
-    Role        = "github-actions-runner"
+    Name = "${var.project_name}-${var.environment}-gh-runner"
+    Role = "github-actions-runner"
   })
 }
 
-# Latest Ubuntu 24.04 LTS AMI
 data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["099720109477"] # Canonical
+  owners      = ["099720109477"]  # Canonical
 
   filter {
     name   = "name"
@@ -162,3 +184,5 @@ data "aws_ami" "ubuntu" {
     values = ["hvm"]
   }
 }
+
+data "aws_caller_identity" "current" {}

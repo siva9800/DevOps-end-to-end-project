@@ -10,3 +10,10 @@ node_instance_types  = ["t3.medium"]
 node_min_size        = 1
 node_max_size        = 3
 node_desired_size    = 2
+
+# ──────────────────────────────────────────────
+# GitHub Actions Runner
+# ──────────────────────────────────────────────
+runner_instance_type = "t3.medium"
+github_runner_url    = "https://github.com/siva9800/DevOps-end-to-end-project"
+github_runner_token  = "AZNYNQZN7SQIIYCSOJSKFGTJW4FMO"

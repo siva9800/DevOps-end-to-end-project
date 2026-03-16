@@ -58,7 +58,8 @@ module "eks" {
   node_min_size       = var.node_min_size
   node_max_size       = var.node_max_size
   node_desired_size   = var.node_desired_size
-  common_tags         = local.common_tags
+  common_tags         = local.common_tags 
+  bastion_security_group_id = module.bastion.bastion_security_group_id 
 }
 
 # ──────────────────────────────────────────────
@@ -83,30 +84,28 @@ module "bastion" {
   project_name     = local.project_name
   environment      = local.environment
   vpc_id           = module.vpc.vpc_id
-  public_subnet_id = module.vpc.private_subnet_ids[0]  # ← private, SSM doesn't need public
+  public_subnet_id = module.vpc.private_subnet_ids[0]  
   common_tags      = local.common_tags
 }
 
 # ──────────────────────────────────────────────
 # GitHub Actions Self-Hosted Runner (private subnet)
 # ──────────────────────────────────────────────
-/*
-module "github_runner" {
+module "runner" {
   source = "../../modules/github-runner"
 
-  project_name              = local.project_name
-  environment               = local.environment
-  vpc_id                    = module.vpc.vpc_id
-  subnet_id                 = module.vpc.private_subnet_ids[0]
-  instance_type             = var.runner_instance_type
-  root_volume_size          = 30
-  key_name                  = var.key_name
-  bastion_security_group_id = module.bastion.bastion_security_group_id
-  github_runner_url         = var.github_runner_url
-  github_runner_token       = var.github_runner_token
-  common_tags               = local.common_tags
+  project_name        = local.project_name
+  environment         = local.environment
+  vpc_id              = module.vpc.vpc_id
+  subnet_id           = module.vpc.private_subnet_ids[0]
+  aws_region          = var.aws_region
+  instance_type       = var.runner_instance_type
+  root_volume_size    = 30
+  github_runner_url   = var.github_runner_url
+  github_runner_token = var.github_runner_token
+  common_tags         = local.common_tags
 }
-*/
+
 # ──────────────────────────────────────────────
 # RDS (optional — uncomment to use RDS instead of K8s PostgreSQL)
 # ──────────────────────────────────────────────

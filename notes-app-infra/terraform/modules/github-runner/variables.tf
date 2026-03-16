@@ -14,7 +14,12 @@ variable "vpc_id" {
 }
 
 variable "subnet_id" {
-  description = "Private subnet ID for the runner (uses NAT Gateway for outbound)"
+  description = "Private subnet ID for the runner"
+  type        = string
+}
+
+variable "aws_region" {
+  description = "AWS region — needed for SSM token fetch at boot"
   type        = string
 }
 
@@ -30,25 +35,13 @@ variable "root_volume_size" {
   default     = 30
 }
 
-variable "key_name" {
-  description = "EC2 key pair name for SSH access (optional)"
-  type        = string
-  default     = null
-}
-
-variable "bastion_security_group_id" {
-  description = "Security group ID of the bastion host (allows SSH from bastion only)"
-  type        = string
-  default     = null
-}
-
 variable "github_runner_url" {
   description = "GitHub repository or organization URL for the runner"
   type        = string
 }
 
 variable "github_runner_token" {
-  description = "GitHub runner registration token"
+  description = "GitHub runner registration token — stored in SSM, never hardcoded"
   type        = string
   sensitive   = true
 }
@@ -58,3 +51,4 @@ variable "common_tags" {
   type        = map(string)
   default     = {}
 }
+

@@ -4,6 +4,7 @@ set -euo pipefail
 # ──────────────────────────────────────────────
 # GitHub Actions Self-Hosted Runner Setup Script
 # Installs: Docker, kubectl, Helm, Terraform, Trivy, AWS CLI
+# Token fetched from SSM at boot — never hardcoded
 # ──────────────────────────────────────────────
 
 export DEBIAN_FRONTEND=noninteractive
@@ -13,7 +14,7 @@ apt-get update -y
 apt-get upgrade -y
 
 # ── Docker ──
-apt-get install -y ca-certificates curl gnupg
+apt-get install -y ca-certificates curl gnupg unzip jq git
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 chmod a+r /etc/apt/keyrings/docker.gpg
@@ -37,22 +38,33 @@ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://
 apt-get update -y
 apt-get install -y terraform
 
-# ── Trivy (container scanner) ──
+# ── Trivy ──
 curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
 
 # ── AWS CLI v2 ──
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
-apt-get install -y unzip
 unzip -q /tmp/awscliv2.zip -d /tmp
 /tmp/aws/install
 rm -rf /tmp/aws /tmp/awscliv2.zip
 
-# ── Other tools ──
-apt-get install -y git jq
-
 # ── Create runner user ──
 useradd -m -s /bin/bash runner
 usermod -aG docker runner
+
+# ── Fetch GitHub Runner token from SSM at boot ──
+# Token is never hardcoded — fetched securely at runtime
+echo "Fetching GitHub runner token from SSM..."
+RUNNER_TOKEN=$(aws ssm get-parameter \
+  --name "${ssm_token_path}" \
+  --with-decryption \
+  --region "${aws_region}" \
+  --query Parameter.Value \
+  --output text)
+
+if [ -z "$RUNNER_TOKEN" ]; then
+  echo "ERROR: Failed to fetch runner token from SSM. Aborting."
+  exit 1
+fi
 
 # ── Install GitHub Actions Runner ──
 RUNNER_VERSION=$(curl -s https://api.github.com/repos/actions/runner/releases/latest | jq -r '.tag_name' | sed 's/v//')
@@ -63,9 +75,24 @@ tar xzf actions-runner-linux-x64.tar.gz
 rm actions-runner-linux-x64.tar.gz
 chown -R runner:runner /home/runner/actions-runner
 
-# ── Configure and start runner ──
-su - runner -c "cd /home/runner/actions-runner && ./config.sh --url ${github_runner_url} --token ${github_runner_token} --name ${runner_name} --labels ${runner_labels} --unattended --replace"
+# ── Configure runner ──
+su - runner -c "
+  cd /home/runner/actions-runner && \
+  ./config.sh \
+    --url ${github_runner_url} \
+    --token $RUNNER_TOKEN \
+    --name ${runner_name} \
+    --labels ${runner_labels} \
+    --unattended \
+    --replace
+"
+
+# ── Install and start as service ──
+cd /home/runner/actions-runner
 ./svc.sh install runner
 ./svc.sh start
+
+# ── Clear token from memory — no longer needed ──
+unset RUNNER_TOKEN
 
 echo "GitHub Actions self-hosted runner setup complete!"

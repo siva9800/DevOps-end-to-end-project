@@ -109,3 +109,14 @@ module "lb_controller_pod_identity" {
 
   tags = var.common_tags
 }
+
+
+resource "aws_security_group_rule" "bastion_to_eks" {
+  type                     = "ingress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  security_group_id        = module.eks.cluster_security_group_id
+  source_security_group_id = var.bastion_security_group_id
+  description              = "Allow bastion to reach EKS API server"
+}

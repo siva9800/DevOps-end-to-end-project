@@ -13,9 +13,8 @@ variable "vpc_cidr" {
 variable "project_name" {
   description = "Project name"
   type        = string
-  default     = "notes-app"   # ← safe default, can override
+  default     = "notes-app"
 }
-
 
 variable "availability_zones" {
   description = "List of availability zones"
@@ -66,19 +65,8 @@ variable "node_desired_size" {
 }
 
 # ──────────────────────────────────────────────
-# Bastion + Runner
+# GitHub Actions Runner
 # ──────────────────────────────────────────────
-/*
-variable "key_name" {
-  description = "EC2 key pair name for SSH access to bastion and runner"
-  type        = string
-}
-
-variable "ssh_allowed_cidrs" {
-  description = "CIDR blocks allowed to SSH into the bastion (your IP)"
-  type        = list(string)
-}
-
 variable "runner_instance_type" {
   description = "EC2 instance type for the GitHub Actions runner"
   type        = string
@@ -91,8 +79,7 @@ variable "github_runner_url" {
 }
 
 variable "github_runner_token" {
-  description = "GitHub runner registration token (generate from GitHub Settings)"
+  description = "GitHub runner registration token — stored in SSM at boot, never hardcoded"
   type        = string
   sensitive   = true
 }
-*/
