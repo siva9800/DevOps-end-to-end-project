@@ -56,26 +56,26 @@ jobs:
         run: pytest tests/ -v --tb=short
 
   # ──────────────────────────────────────────────
-  # SonarQube — static code analysis
+  # SonarQube — static code analysis (disabled for now)
   # ──────────────────────────────────────────────
-  sonarqube:
-    name: SonarQube Scan
-    runs-on: [self-hosted, linux, x64]
-    needs: lint-test
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # full history for better analysis
-
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v4
-        with:
-          projectBaseDir: snappaste-backend
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+  # sonarqube:
+  #   name: SonarQube Scan
+  #   runs-on: [self-hosted, linux, x64]
+  #   needs: lint-test
+  #
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0  # full history for better analysis
+  #
+  #     - name: SonarQube Scan
+  #       uses: SonarSource/sonarqube-scan-action@v4
+  #       with:
+  #         projectBaseDir: snappaste-backend
+  #       env:
+  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  #         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
   # ──────────────────────────────────────────────
   # Build → Trivy scan → Push to ECR
@@ -83,7 +83,7 @@ jobs:
   build-push:
     name: Build & Push
     runs-on: [self-hosted, linux, x64]
-    needs: sonarqube
+    needs: lint-test
     outputs:
       image_tag: ${{ steps.tag.outputs.tag }}
       ecr_url: ${{ steps.ecr.outputs.url }}

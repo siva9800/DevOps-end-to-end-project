@@ -88,15 +88,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # Token is valid 1 hour — always generated fresh, never stored stale
 
-      - name: Get AWS Account ID
-        id: account
-        run: echo "id=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_OUTPUT
-
       - name: Terraform Init
         working-directory: snappaste-infra/terraform/environments/${{ env.TF_ENV }}
-        run: |
-          terraform init \
-            -backend-config="bucket=snappaste-terraform-state-${{ steps.account.outputs.id }}"
+        run: terraform init
 
       - name: Terraform Plan
         working-directory: snappaste-infra/terraform/environments/${{ env.TF_ENV }}
@@ -165,10 +159,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Get AWS Account ID
-        id: account
-        run: echo "id=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_OUTPUT
-
       - name: Download Plan
         uses: actions/download-artifact@v4
         with:
@@ -177,9 +167,7 @@ jobs:
 
       - name: Terraform Init
         working-directory: snappaste-infra/terraform/environments/${{ env.TF_ENV }}
-        run: |
-          terraform init \
-            -backend-config="bucket=snappaste-terraform-state-${{ steps.account.outputs.id }}"
+        run: terraform init
 
       - name: Terraform Apply
         working-directory: snappaste-infra/terraform/environments/${{ env.TF_ENV }}
