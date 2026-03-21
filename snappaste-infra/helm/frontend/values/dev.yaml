@@ -22,4 +22,4 @@ resources:
 ingress:
   enabled: true
   className: alb
-  host: "dev.snappaste.internal"
+  host: ""  # empty = path-based routing only (no domain needed)

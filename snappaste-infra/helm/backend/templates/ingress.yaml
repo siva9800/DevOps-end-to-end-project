@@ -5,12 +5,13 @@ metadata:
   name: backend
   namespace: {{ .Values.global.namespace }}
   annotations:
-    alb.ingress.kubernetes.io/scheme: {{ index .Values.ingress.annotations "alb.ingress.kubernetes.io/scheme" | default "internet-facing" }}
+    alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
-    - http:
+    - {{- if .Values.ingress.host }}host: {{ .Values.ingress.host }}{{- end }}
+      http:
         paths:
           - path: /api
             pathType: Prefix
