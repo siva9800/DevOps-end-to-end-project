@@ -14,7 +14,7 @@ auth:
 
 storage:
   size: 5Gi
-  storageClass: ""
+  storageClass: "gp2"
 
 resources:
   requests:
