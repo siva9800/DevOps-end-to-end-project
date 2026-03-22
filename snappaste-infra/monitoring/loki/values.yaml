@@ -3,7 +3,7 @@
 # Chart: grafana/loki
 #
 # Before installing, get bucket name from Terraform:
-#   terraform output loki_bucket_name
+#   terraform output snappaste-loki-dev-884337374668
 #   terraform output loki_role_arn
 # ──────────────────────────────────────────────
 
@@ -14,7 +14,7 @@ singleBinary:
   replicas: 1
 
 # S3 storage config
-# Replace LOKI_BUCKET_NAME with: terraform output loki_bucket_name
+# Replace snappaste-loki-dev-884337374668 with: terraform output snappaste-loki-dev-884337374668
 loki:
   auth_enabled: false   # single-tenant mode, no auth needed
 
@@ -26,9 +26,9 @@ loki:
     s3:
       region: us-east-1
       bucketNames:
-        chunks: LOKI_BUCKET_NAME    # ← replace with terraform output
-        ruler: LOKI_BUCKET_NAME     # ← replace with terraform output
-        admin: LOKI_BUCKET_NAME     # ← replace with terraform output
+        chunks: snappaste-loki-dev-884337374668    # ← replace with terraform output
+        ruler: snappaste-loki-dev-884337374668     # ← replace with terraform output
+        admin: snappaste-loki-dev-884337374668     # ← replace with terraform output
 
   schemaConfig:
     configs:

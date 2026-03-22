@@ -50,20 +50,20 @@ mimir:
       storage:
         backend: s3
         s3:
-          bucket_name: MIMIR_BUCKET_NAME    # ← replace with terraform output
+          bucket_name: snappaste-mimir-dev-884337374668    # ← replace with terraform output
           region: us-east-1
 
     blocks_storage:
       s3:
-        bucket_name: MIMIR_BUCKET_NAME      # ← replace with terraform output
+        bucket_name: snappaste-mimir-dev-884337374668      # ← replace with terraform output
 
     alertmanager_storage:
       s3:
-        bucket_name: MIMIR_BUCKET_NAME      # ← replace with terraform output
+        bucket_name: snappaste-mimir-dev-884337374668      # ← replace with terraform output
 
     ruler_storage:
       s3:
-        bucket_name: MIMIR_BUCKET_NAME      # ← replace with terraform output
+        bucket_name: snappaste-mimir-dev-884337374668      # ← replace with terraform output
 
 # Service account — must match Pod Identity association in Terraform
 serviceAccount:
