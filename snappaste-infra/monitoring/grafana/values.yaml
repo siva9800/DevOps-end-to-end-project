@@ -48,16 +48,16 @@ dashboardProviders:
 # Import community dashboards automatically
 dashboards:
   default:
-    kubernetes-cluster:
-      gnetId: 7249      # K8s cluster overview
-      revision: 1
-      datasource: Mimir
-    kubernetes-pods:
-      gnetId: 6781      # K8s pod metrics
-      revision: 1
-      datasource: Mimir
     node-exporter:
-      gnetId: 1860      # Node exporter full
+      gnetId: 1860      # Node Exporter Full — node CPU/memory/disk/network
+      revision: 37
+      datasource: Mimir
+    k8s-global:
+      gnetId: 15757     # Kubernetes / Views / Global — cluster-wide overview
+      revision: 37
+      datasource: Mimir
+    k8s-pods:
+      gnetId: 15760     # Kubernetes / Views / Pods — per-pod drill down
       revision: 37
       datasource: Mimir
 
