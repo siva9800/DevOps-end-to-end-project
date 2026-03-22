@@ -73,12 +73,12 @@ ingress:
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/group.name: snappaste      # same group = same ALB
+    alb.ingress.kubernetes.io/group.name: snappaste
     alb.ingress.kubernetes.io/group.order: "30"
+  path: /grafana
+  pathType: Prefix
   hosts:
-    - host: ""    # no host = match any domain (ALB DNS name works directly)
-      paths:
-        - /grafana
+    - ""
 
 # Tell Grafana it's served under /grafana subpath
 grafana.ini:
