@@ -40,14 +40,17 @@ mimir:
     blocks_storage:
       s3:
         bucket_name: snappaste-mimir-dev-884337374668
+        prefix: blocks
 
     alertmanager_storage:
       s3:
         bucket_name: snappaste-mimir-dev-884337374668
+        prefix: alertmanager
 
     ruler_storage:
       s3:
         bucket_name: snappaste-mimir-dev-884337374668
+        prefix: ruler
 
 # Single-zone — no zone-awareness for dev
 ingester:
