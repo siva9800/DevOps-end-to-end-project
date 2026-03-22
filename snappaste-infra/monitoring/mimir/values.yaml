@@ -35,6 +35,7 @@ mimir:
         backend: s3
         s3:
           region: us-east-1
+          endpoint: s3.us-east-1.amazonaws.com
 
     blocks_storage:
       s3:
