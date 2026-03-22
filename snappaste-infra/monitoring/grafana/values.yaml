@@ -78,8 +78,7 @@ ingress:
   hosts:
     - host: ""    # no host = match any domain (ALB DNS name works directly)
       paths:
-        - path: /grafana
-          pathType: Prefix
+        - /grafana
 
 # Tell Grafana it's served under /grafana subpath
 grafana.ini:
