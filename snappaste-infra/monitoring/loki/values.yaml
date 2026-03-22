@@ -23,12 +23,12 @@ loki:
 
   storage:
     type: s3
+    bucketNames:
+      chunks: snappaste-loki-dev-884337374668
+      ruler: snappaste-loki-dev-884337374668
+      admin: snappaste-loki-dev-884337374668
     s3:
       region: us-east-1
-      bucketNames:
-        chunks: snappaste-loki-dev-884337374668    # ← replace with terraform output
-        ruler: snappaste-loki-dev-884337374668     # ← replace with terraform output
-        admin: snappaste-loki-dev-884337374668     # ← replace with terraform output
 
   schemaConfig:
     configs:
