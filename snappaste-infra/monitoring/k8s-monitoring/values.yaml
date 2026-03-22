@@ -1,53 +1,61 @@
 # ──────────────────────────────────────────────
-# k8s-monitoring — Grafana Alloy + kube-state-metrics + node-exporter
+# k8s-monitoring — Grafana Alloy collectors
 # Chart: grafana/k8s-monitoring
+# Chart version: 3.8.4
 #
-# This single chart installs:
-#   - Grafana Alloy (collects metrics + ships logs)
-#   - kube-state-metrics (K8s object state metrics)
-#   - node-exporter (node CPU/memory/disk metrics)
+# This is v3 — completely different values from v1.
+# Installs: Alloy (metrics) + Alloy (logs) + kube-state-metrics + node-exporter
 # ──────────────────────────────────────────────
 
 cluster:
-  name: snappaste-dev-eks
+  name: snappaste-dev-eks   # identifies this cluster in all telemetry
 
-# ── Send metrics to Mimir ──
+# ── Where to send telemetry ──
 destinations:
   - name: mimir
     type: prometheus
-    url: http://mimir-nginx.monitoring.svc.cluster.local/api/v1/push
+    url: http://mimir-nginx.monitoring.svc.cluster.local/api/prom/push
 
   - name: loki
     type: loki
-    url: http://loki.monitoring.svc.cluster.local/loki/api/v1/push
+    url: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
 
-# ── What to collect ──
+# ── What to collect and where to route ──
 clusterMetrics:
-  enabled: true             # kube-state-metrics + node-exporter + K8s metrics
+  enabled: true
+  destinations:
+    - mimir
 
 clusterEvents:
-  enabled: true             # K8s events as logs → Loki
+  enabled: true
+  destinations:
+    - loki
 
 podLogs:
-  enabled: true             # all pod stdout/stderr → Loki
-
-applicationObservability:
-  enabled: false            # disable OpenTelemetry for now
+  enabled: true
+  destinations:
+    - loki
 
 annotationAutodiscovery:
-  enabled: true             # scrape pods with prometheus.io/scrape: "true" annotation
+  enabled: true   # scrape pods with prometheus.io/scrape: "true" annotation
+  destinations:
+    - mimir
 
-# ── kube-state-metrics ──
-kube-state-metrics:
-  enabled: true
+applicationObservability:
+  enabled: false   # disable OpenTelemetry for now
 
-# ── node-exporter ──
-node-exporter:
-  enabled: true
-
-# ── Alloy config ──
+# ── Alloy collector instances ──
 alloy-metrics:
   enabled: true
 
 alloy-logs:
   enabled: true
+
+alloy-singleton:
+  enabled: true
+
+alloy-receiver:
+  enabled: false
+
+alloy-profiles:
+  enabled: false

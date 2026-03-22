@@ -1,26 +1,61 @@
 # ──────────────────────────────────────────────
 # Mimir — Metrics storage backed by S3
 # Chart: grafana/mimir-distributed
+# Chart version: 6.0.6  |  App version: Mimir 3.0.4
+#
+# BREAKING CHANGES in 6.0:
+#   - Kafka + ingest storage enabled by default — explicitly disabled below
+#   - Top-level nginx removed — use gateway instead
+#   - Must apply rollout-operator CRDs before install (see monitoring-setup.md)
 #
 # Before installing, get bucket name from Terraform:
 #   terraform output mimir_bucket_name
-#   terraform output mimir_role_arn
 # ──────────────────────────────────────────────
 
-# Single-zone deployment — simple, no HA (fine for dev/learning)
-# All components run with 1 replica
-alertmanager:
+# Disable bundled MinIO — using S3
+minio:
+  enabled: false
+
+# Disable Kafka — use classic S3 push path (simpler, no Kafka overhead)
+kafka:
+  enabled: false
+
+mimir:
+  structuredConfig:
+    # Disable ingest storage to use classic S3 architecture
+    ingest_storage:
+      enabled: false
+
+    ingester:
+      push_grpc_method_enabled: true
+
+    # S3 storage for all components
+    common:
+      storage:
+        backend: s3
+        s3:
+          region: us-east-1
+
+    blocks_storage:
+      s3:
+        bucket_name: snappaste-mimir-dev-884337374668
+
+    alertmanager_storage:
+      s3:
+        bucket_name: snappaste-mimir-dev-884337374668
+
+    ruler_storage:
+      s3:
+        bucket_name: snappaste-mimir-dev-884337374668
+
+# Single-zone — no zone-awareness for dev
+ingester:
   replicas: 1
   zoneAwareReplication:
     enabled: false
 
 distributor:
   replicas: 1
-
-ingester:
-  replicas: 1
-  zoneAwareReplication:
-    enabled: false
 
 querier:
   replicas: 1
@@ -42,36 +77,12 @@ storeGateway:
 compactor:
   replicas: 1
 
-# S3 storage config
-# Replace MIMIR_BUCKET_NAME with: terraform output mimir_bucket_name
-mimir:
-  structuredConfig:
-    common:
-      storage:
-        backend: s3
-        s3:
-          bucket_name: snappaste-mimir-dev-884337374668    # ← replace with terraform output
-          region: us-east-1
-
-    blocks_storage:
-      s3:
-        bucket_name: snappaste-mimir-dev-884337374668      # ← replace with terraform output
-
-    alertmanager_storage:
-      s3:
-        bucket_name: snappaste-mimir-dev-884337374668      # ← replace with terraform output
-
-    ruler_storage:
-      s3:
-        bucket_name: snappaste-mimir-dev-884337374668      # ← replace with terraform output
+alertmanager:
+  replicas: 1
+  zoneAwareReplication:
+    enabled: false
 
 # Service account — must match Pod Identity association in Terraform
 serviceAccount:
   name: mimir
-  annotations:
-    # No annotation needed — Pod Identity uses agent, not IRSA
-    {}
-
-# Disable MinIO — we use S3
-minio:
-  enabled: false
+  annotations: {}   # Pod Identity uses agent, no annotation needed

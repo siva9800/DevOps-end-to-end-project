@@ -1,26 +1,32 @@
 # ──────────────────────────────────────────────
 # Loki — Log storage backed by S3
-# Chart: grafana/loki
+# Chart: grafana-community/loki  (OSS chart moved from grafana/ on Mar 16 2026)
+# Chart version: 6.55.0  |  App version: Loki 3.6.7
 #
 # Before installing, get bucket name from Terraform:
-#   terraform output snappaste-loki-dev-884337374668
-#   terraform output loki_role_arn
+#   terraform output loki_bucket_name
 # ──────────────────────────────────────────────
 
-# Single binary mode — simple, 1 pod handles everything
 deploymentMode: SingleBinary
 
 singleBinary:
   replicas: 1
 
-# S3 storage config
-# Replace snappaste-loki-dev-884337374668 with: terraform output snappaste-loki-dev-884337374668
+# Explicitly zero out all other deployment modes
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
 loki:
-  auth_enabled: false   # single-tenant mode, no auth needed
+  auth_enabled: false   # single-tenant mode
 
   commonConfig:
     replication_factor: 1
 
+  # bucketNames lives here (NOT under s3)
   storage:
     type: s3
     bucketNames:
@@ -40,6 +46,16 @@ loki:
           prefix: loki_index_
           period: 24h
 
+# Disable MinIO — using S3
+minio:
+  enabled: false
+
+# Disable caches for dev (saves resources)
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
 # Service account — must match Pod Identity association in Terraform
 serviceAccount:
   name: loki
@@ -54,6 +70,5 @@ monitoring:
   lokiCanary:
     enabled: false
 
-# Disable test pods
 test:
   enabled: false

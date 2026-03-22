@@ -30,11 +30,27 @@ Note these values — you'll need them in Step 3 and 4.
 
 ---
 
-## Step 2 — Add Grafana Helm repo
+## Step 2 — Add Helm repos
+
+> **Note:** Grafana OSS charts moved repos in early 2026:
+> - `grafana/loki` and `grafana/grafana` moved to `grafana-community`
+> - `grafana/mimir-distributed` and `grafana/k8s-monitoring` stayed on original repo
 
 ```bash
+# Original grafana repo (mimir, k8s-monitoring)
 helm repo add grafana https://grafana.github.io/helm-charts
+
+# Community repo (loki, grafana UI)
+helm repo add grafana-community https://grafana-community.github.io/helm-charts
+
 helm repo update
+```
+
+## Step 2b — Apply Mimir CRDs (required for mimir-distributed 6.0+)
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/grafana/helm-charts/main/charts/rollout-operator/crds/replica-templates-custom-resource-definition.yaml
+kubectl apply -f https://raw.githubusercontent.com/grafana/helm-charts/main/charts/rollout-operator/crds/zone-aware-pod-disruption-budget-custom-resource-definition.yaml
 ```
 
 ---
@@ -53,7 +69,7 @@ sed -i 's/LOKI_BUCKET_NAME/<your-loki-bucket-name>/g' \
   snappaste-infra/monitoring/loki/values.yaml
 
 # Install
-helm upgrade --install loki grafana/loki \
+helm upgrade --install loki grafana-community/loki \
   --namespace monitoring \
   --create-namespace \
   --values snappaste-infra/monitoring/loki/values.yaml \
@@ -89,7 +105,7 @@ kubectl get pods -n monitoring | grep mimir
 ## Step 5 — Install Grafana (UI)
 
 ```bash
-helm upgrade --install grafana grafana/grafana \
+helm upgrade --install grafana grafana-community/grafana \
   --namespace monitoring \
   --values snappaste-infra/monitoring/grafana/values.yaml \
   --wait \

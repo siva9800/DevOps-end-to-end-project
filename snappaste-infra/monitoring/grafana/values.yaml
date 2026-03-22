@@ -1,16 +1,14 @@
 # ──────────────────────────────────────────────
 # Grafana — Visualization UI
-# Chart: grafana/grafana
+# Chart: grafana-community/grafana  (moved from grafana/ on Jan 30 2026)
+# Chart version: 10.5.15  |  App version: Grafana 12.3.1
 # ──────────────────────────────────────────────
 
 replicas: 1
 
-# Admin credentials
-# Change the password before deploying to prod
 adminUser: admin
-adminPassword: snappaste-grafana-2024   # change this
+adminPassword: snappaste-grafana-2024   # change before prod
 
-# Persist dashboards and settings
 persistence:
   enabled: true
   size: 2Gi
@@ -30,7 +28,7 @@ datasources:
 
       - name: Loki
         type: loki
-        url: http://loki.monitoring.svc.cluster.local
+        url: http://loki.monitoring.svc.cluster.local:3100
         jsonData:
           maxLines: 1000
 
@@ -45,31 +43,29 @@ dashboardProviders:
         options:
           path: /var/lib/grafana/dashboards/default
 
-# Import community dashboards automatically
 dashboards:
   default:
     node-exporter:
-      gnetId: 1860      # Node Exporter Full — node CPU/memory/disk/network
+      gnetId: 1860      # Node Exporter Full
       revision: 37
       datasource: Mimir
     k8s-global:
-      gnetId: 15757     # Kubernetes / Views / Global — cluster-wide overview
+      gnetId: 15757     # Kubernetes / Views / Global
       revision: 37
       datasource: Mimir
     k8s-pods:
-      gnetId: 15760     # Kubernetes / Views / Pods — per-pod drill down
+      gnetId: 15760     # Kubernetes / Views / Pods
       revision: 37
       datasource: Mimir
     k8s-logs-pod:
-      gnetId: 15141     # Kubernetes / Logs / Pod — logs for a specific pod
+      gnetId: 15141     # Kubernetes / Logs / Pod
       revision: 1
       datasource: Loki
     k8s-logs-cluster:
-      gnetId: 15142     # Kubernetes / Logs / Cluster — all pod logs in one view
+      gnetId: 15142     # Kubernetes / Logs / Cluster
       revision: 1
       datasource: Loki
 
-# Resource limits
 resources:
   requests:
     cpu: 100m
